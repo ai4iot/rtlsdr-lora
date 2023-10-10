@@ -39,3 +39,6 @@ A continuación definimos los **objetivos** del proyecto para la próxima semana
 > - [ ] Investigar sobre el encapsulamiento de MQTT: [MQTT guide](http://www.steves-internet-guide.com/mqtt/)
 > - [ ] Librerías para Python: [Paho](https://wiki.eclipse.org/Paho)
 
+## Parte de localización
+- Proyecto de **KrakenSDR**, ahora mismo disponible con stock: https://www.crowdsupply.com/krakenrf/krakensdr#products
+
