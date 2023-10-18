@@ -36,6 +36,6 @@ plt.xlabel('Frequency (MHz)')
 plt.ylabel('Time Steps')
 plt.title('PSD vs Frequency')
 plt.show()
-plt.savefig(f"fig_{secrets.choice(range(1,10000))}.png")
+plt.savefig(f"pwr_fig_{secrets.choice(range(1,10000))}.png")
 # Cierra el dispositivo SDR
 sdr.close()

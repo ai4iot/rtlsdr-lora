@@ -42,3 +42,8 @@ A continuación definimos los **objetivos** del proyecto para la próxima semana
 ## Parte de localización
 - Proyecto de **KrakenSDR**, ahora mismo disponible con stock: https://www.crowdsupply.com/krakenrf/krakensdr#products
 
+## Mirar
+
+- Mirar sobre detección de intrusiones
+- Watchdog
+- Investigar sobre como decodificar lora
