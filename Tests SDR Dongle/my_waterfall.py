@@ -6,7 +6,7 @@ sdr = RtlSdr()
 
 # Configure device
 sdr.sample_rate = 2.4e6
-sdr.center_freq = 434e6
+sdr.center_freq = 868e6
 sdr.gain = 0
 
 # Define the capture time (5 seconds)

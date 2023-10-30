@@ -169,7 +169,7 @@ def main():
 
     # some defaults
     sdr.rs = 2.4e6
-    sdr.fc = 100e6
+    sdr.fc = 868e6
     sdr.gain = 10
 
     wf.start()
