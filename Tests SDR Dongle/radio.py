@@ -11,7 +11,6 @@ end_freq = 201.6e6
 # configure device
 sample_rate = 2.4e6
 sdr.sample_rate = sample_rate
-
   
 sdr.gain = 4
 NFFT = 512 

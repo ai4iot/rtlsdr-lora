@@ -1,6 +1,6 @@
 import asyncio
 import time
-from matplotlib import animation, pyplot as plt
+from matplotlib import pyplot as plt
 from rtlsdr import RtlSdr
 import numpy as np
 from scipy.signal import welch
@@ -40,16 +40,6 @@ async def process_samples(buffer):
     elapsed_time = end_time - start_time
     print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.5f}")
 
-async def plot_values():
-    def animate(i,f, pxx):
-        """ #plt.cl()
-        plt.plot(f, pxx)
-        # Format plot
-        plt.subplots_adjust(bottom=0.30)
-        plt.ylabel("Frequency (MHz)")
-        plt.ylabel('Relative power (dB)') """
-    ani = animation.FuncAnimation(fig, animate, fargs=(f, pxx), interval=1000)
-    plt.show()
     
 async def main():
     streaming_task_instance = asyncio.create_task(streaming_task())
@@ -60,5 +50,6 @@ async def main():
     sdr.close()
 
 if __name__ == "__main__":
+    
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
