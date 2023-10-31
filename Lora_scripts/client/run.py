@@ -96,13 +96,19 @@ async def main():
     udp_thread_instance.daemon = True
     #mqtt_thread_instance.start()
     udp_thread_instance.start()
-    #plot_task = asyncio.create_task(plot_values())
-    await streaming_task_instance
-    #await asyncio.gather(streaming_task_instance, plot_task)  # Wait for both tasks to complete
-
-    sdr.close()
+    try:
+        await streaming_task_instance
+    except KeyboardInterrupt:
+        print("Ctrl+C pressed. Exiting gracefully.")
+    finally:
+        sdr.close()
 
 if __name__ == "__main__":
-    
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    try:
+        loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        print("Ctrl+C pressed. Exiting gracefully.")
+    finally:
+        loop.close()
+
