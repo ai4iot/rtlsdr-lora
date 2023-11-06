@@ -48,7 +48,6 @@ def sdrConfig(sdr):
     sdr.sample_rate = sample_rate
     sdr.center_freq = 868e6
     sdr.gain = 4
-    print("Hola")
     f = deque((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
     f.rotate(128)
 async def initial_measurement():
