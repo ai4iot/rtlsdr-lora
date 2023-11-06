@@ -5,11 +5,12 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLa
 from PyQt5.QtCore import pyqtSignal, QObject
 import pyqtgraph as pg
 import threading  # Import the threading module
-from collections import deque
 
 # Define the UDP server settings
 UDP_IP = "192.168.79.119"  # Change this to the IP where you're receiving UDP data
 UDP_PORT = 12345
+
+th = 0
 
 class DataReceiver(QObject):
     data_received = pyqtSignal(bytes)
@@ -21,7 +22,7 @@ class DataReceiver(QObject):
 
     def start_listening(self):
         while True:
-            data, addr = self.udp_socket.recvfrom(4771)
+            data, addr = self.udp_socket.recvfrom(9857)
             self.data_received.emit(data)
 
 class PlotWidget(QWidget):
@@ -41,8 +42,8 @@ class PlotWidget(QWidget):
         layout.addWidget(self.label_value)
         data_receiver.data_received.connect(self.update_plot)
 
-        self.f = deque(maxlen=256)  
-        self.pxx = deque(maxlen=265)
+        self.f = []
+        self.pxx = []
         self.pen = pg.mkPen('b', width=2)
         self.curve = self.plot_widget.plot(pen=self.pen)
         self.plot_widget.setLabel('left', 'Power (dBm)')
@@ -52,15 +53,13 @@ class PlotWidget(QWidget):
 
     def update_plot(self, data):
         new_data = pickle.loads(data)
-        self.pxx = deque(new_data["pxx"])
-        self.f = deque(new_data["frequencies"])
-        self.f.rotate(128)
-        self.pxx.rotate(128)
+        self.pxx = new_data["pxx"]
+        self.f = new_data["frequencies"]
         pwr = new_data["power_result"]
         self.plot_widget.clear()
         self.plot_widget.plot(self.f, self.pxx, pen=self.pen)  # Set the line color to blue
-        self.label_value.setText(f"Power: {1e6*pwr:.5f}")
-        self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if pwr > 0 else 'red'}")
+        self.label_value.setText(f"Power: {pwr:.3f}")
+        self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if pwr > th else 'red'}")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
