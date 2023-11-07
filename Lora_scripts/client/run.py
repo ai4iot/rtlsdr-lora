@@ -46,7 +46,7 @@ def handle_sigint(signum, frame):
 def sdrConfig(sdr):
     global f
     sdr.sample_rate = sample_rate
-    sdr.center_freq = 868e6
+    sdr.center_freq = 8686
     sdr.gain = 4
     f = deque((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
     f.rotate(128)
@@ -62,22 +62,24 @@ async def initial_measurement():
             break  
         # Calculate the power threshold based on the initial measurement
         _, initial_pxx = welch(x=initial_measurement_buffer, fs=sdr_initial.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
-        pxx = deque(10 * np.log10(initial_pxx))
+        pxx = deque(initial_pxx)
         pxx.rotate(128)
-        pxx[0] = max_pwr  
-        pxx[-1] = max_pwr
         initial_power = np.trapz(pxx, f)  # Integrate in linear scale
+        pxx = 10 * np.log10(pxx)
         power_threshold = initial_power
         print(f"Power threshold set to: {power_threshold:.10f}")
     sdr_initial.cancel_read_async()
     sdr_initial.close()
     return power_threshold
-async def streaming_task():
+async def streaming_task(mqtt_thread_instance, udp_thread_instance):
     global sdr
     buffer = []
     samples_collected = 0
     pwr_threshold = await initial_measurement()
-    pwr_threshold += extra_threshold
+    # Start both threads after the initial measurement
+    mqtt_thread_instance.start()
+    udp_thread_instance.start()
+    pwr_threshold *= (1+extra_threshold)
     sdr = RtlSdr()
     sdrConfig(sdr)
     # Registrar la función de manejo de la señal SIGINT
@@ -100,14 +102,13 @@ async def process_samples(buffer,sdr):
     global  udp_buffer
     start_time = time.time()
     _, pxx = welch(x=buffer, fs=sdr.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
-    pxx = deque(10 * np.log10(pxx))
+    pxx = deque(pxx)
     pxx.rotate(128)
-    pxx[0] = max_pwr  
-    pxx[-1] = max_pwr
     power_result = np.trapz(pxx, f)  # Integrate in linear scale
+    pxx = 10 * np.log10(pxx)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
+    #print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
     process_udp(pxx, power_result)
     return power_result
 
@@ -144,13 +145,11 @@ def udp_thread():
             udp_socket.sendto(data, (udp_host, udp_port))
 
 async def main():
-    streaming_task_instance = asyncio.create_task(streaming_task())
-    mqtt_thread_instance = threading.Thread(target=mqtt_thread)
     udp_thread_instance = threading.Thread(target=udp_thread)
+    mqtt_thread_instance = threading.Thread(target=mqtt_thread)
     mqtt_thread_instance.daemon = True
     udp_thread_instance.daemon = True
-    mqtt_thread_instance.start()
-    udp_thread_instance.start()
+    streaming_task_instance = asyncio.create_task(streaming_task(mqtt_thread_instance,udp_thread_instance))    
     await streaming_task_instance    
 
 if __name__ == "__main__":
