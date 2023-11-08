@@ -10,6 +10,7 @@ El programa cuenta con dos scripts:
 Los parámetros de ejecución se encuentran en el archivo `.env` dentro de la carpeta `Lora_scripts/client/`. Estos son los parámetros que se pueden configurar:
 * **SAMPLE_RATE** $\rightarrow$ Frecuencia de muestreo del SDR
 * **CENTER_FREQ** $\rightarrow$ Frecuencia central de la banda a monitorizar, en nuestro caso es LoRa (868 MHz)
+* **COLLECTED_SAMPLES** $\rightarrow$ Número de muestras que se recogen antes de procesarlas
 * **GAIN** $\rightarrow$ Ganancia del SDR
 * **NFFT** $\rightarrow$ Número de muestras que se utilizan para calcular la FFT
 * **BROKER** $\rightarrow$ Dirección IP del broker MQTT
@@ -20,7 +21,7 @@ Los parámetros de ejecución se encuentran en el archivo `.env` dentro de la ca
 * **PASSWORD** $\rightarrow$ Contraseña del broker MQTT
 * **UDP_HOST** $\rightarrow$ Dirección IP del servidor UDP al que se envían los datos para visualizarlos en tiempo real
 * **UDP_PORT** $\rightarrow$ Puerto del servidor UDP al que se envían los datos para visualizarlos en tiempo real
-* **COLLECTED_SAMPLES** $\rightarrow$ Número de muestras que se recogen antes de procesarlas
+
 * **LEN_POWER_BUFFER** $\rightarrow$ Número de muestras de las que se recoge el valor booleano si la potencia instantánea es mayor que el umbral
 * **THRESHOLD_COUNT** $\rightarrow$ Número de muestras que deben ser mayores que el umbral para generar una alerta
 * **EXTRA_THRESHOLD** $\rightarrow$ Umbral extra que se suma al umbral calculado para generar una alerta
@@ -34,8 +35,4 @@ Los parámetros de ejecución se encuentran en el archivo `.env` dentro de la ca
 ## Uso
 
 
-## Contribución
-Las contribuciones son bienvenidas. Por favor, asegúrese de seguir las pautas de contribución del proyecto.
 
-## Licencia
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.

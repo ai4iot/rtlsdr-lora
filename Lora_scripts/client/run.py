@@ -21,6 +21,7 @@ center_freq = float(os.getenv("CENTER_FREQ")) # type: ignore
 gain = int(os.getenv("GAIN")) # type: ignore
 NFFT = int(os.getenv("NFFT")) # type: ignore
 collected_samples = int(os.getenv("COLLECTED_SAMPLES")) # type: ignore
+initial_repeats = int(os.getenv("INITIAL_REPEAT")) # type: ignore
 pxx = []
 power_result = 0
 ### MQTT config ###
@@ -58,27 +59,26 @@ def sdrConfig(sdr):
 async def initial_measurement():
     sdr_initial = RtlSdr()
     sdrConfig(sdr_initial)
-    initial_measurement_buffer = []
     initial_collected_samples = collected_samples*10
-    total_collected_samples = initial_collected_samples*5
+    index =0
+    power_threshold=0
     async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples):
-        initial_measurement_buffer.extend(samples)  # Collect data for the initial measurement
-        if len(initial_measurement_buffer) > total_collected_samples:
-            break  
         # Calculate the power threshold based on the initial measurement
-        _, initial_pxx = welch(x=initial_measurement_buffer, fs=sdr_initial.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
+        _, initial_pxx = welch(x=samples, fs=sdr_initial.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
         pxx = deque(initial_pxx)
         pxx.rotate(128)
         initial_power = np.trapz(pxx, f)  # Integrate in linear scale
         pxx = 10 * np.log10(pxx)
-        power_threshold = initial_power
-        print(f"Power threshold set to: {power_threshold:.10f}")
+        power_threshold += initial_power
+        print(f"Initial power: {initial_power:.10f}")
+        index += 1
+        if index > initial_repeats:
+            break
     sdr_initial.cancel_read_async()
     sdr_initial.close()
-    return power_threshold
+    return power_threshold/index
 async def streaming_task(mqtt_thread_instance, udp_thread_instance):
     global sdr
-    buffer = []
     samples_collected = 0
     pwr_threshold = await initial_measurement()
     # Start both threads after the initial measurement
@@ -91,11 +91,9 @@ async def streaming_task(mqtt_thread_instance, udp_thread_instance):
     signal.signal(signal.SIGINT, handle_sigint)
     try:
         async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
-            buffer.extend(samples)
             samples_collected += len(samples)
             if samples_collected >= collected_samples:
-                pwr = await process_samples(buffer, sdr)
-                buffer = []
+                pwr = await process_samples(samples, sdr)
                 samples_collected = 0
                 power_buffer.append(1 if pwr > pwr_threshold else 0)
                 if len(power_buffer) > len_power_buffer:
@@ -103,17 +101,17 @@ async def streaming_task(mqtt_thread_instance, udp_thread_instance):
     finally:
         sys.exit(0)
 
-async def process_samples(buffer,sdr):
+async def process_samples(samples,sdr):
     global  udp_buffer
     start_time = time.time()
-    _, pxx = welch(x=buffer, fs=sdr.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
+    _, pxx = welch(x=samples, fs=sdr.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
     pxx = deque(pxx)
     pxx.rotate(128)
     power_result = np.trapz(pxx, f)  # Integrate in linear scale
     pxx = 10 * np.log10(pxx)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    #print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
+    print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
     process_udp(pxx, power_result)
     return power_result
 
