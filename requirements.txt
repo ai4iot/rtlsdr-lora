@@ -1,0 +1,47 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-aarch64
+_openmp_mutex=4.5=2_gnu
+bzip2=1.0.8=hf897c2e_4
+ca-certificates=2023.7.22=hcefe29a_0
+contourpy=1.2.0=pypi_0
+cycler=0.12.1=pypi_0
+fonttools=4.44.0=pypi_0
+kiwisolver=1.4.5=pypi_0
+ld_impl_linux-aarch64=2.40=h2d8c526_0
+libblas=3.9.0=19_linuxaarch64_openblas
+libcblas=3.9.0=19_linuxaarch64_openblas
+libffi=3.4.2=h3557bc0_5
+libgcc-ng=13.2.0=hf8544c7_2
+libgfortran-ng=13.2.0=he9431aa_2
+libgfortran5=13.2.0=h582850c_2
+libgomp=13.2.0=hf8544c7_2
+liblapack=3.9.0=19_linuxaarch64_openblas
+libnsl=2.0.1=h31becfc_0
+libopenblas=0.3.24=pthreads_h5a5ec62_0
+libsqlite=3.44.0=h194ca79_0
+libstdcxx-ng=13.2.0=h9a76618_2
+libuuid=2.38.1=hb4cce97_0
+libzlib=1.2.13=h31becfc_5
+matplotlib=3.8.1=pypi_0
+ncurses=6.4=h0425590_2
+numpy=1.26.0=py310hcbab775_0
+openssl=3.1.4=h31becfc_0
+packaging=23.2=pypi_0
+paho-mqtt=1.6.1=pyhd8ed1ab_0
+pillow=10.1.0=pypi_0
+pip=23.3.1=pyhd8ed1ab_0
+pyparsing=3.1.1=pypi_0
+pyrtlsdr=0.3.0=pypi_0
+python=3.10.13=hbbe8eec_0_cpython
+python-dateutil=2.8.2=pypi_0
+python-dotenv=1.0.0=pypi_0
+python_abi=3.10=4_cp310
+readline=8.2=h8fc344f_1
+scipy=1.11.3=py310hcbab775_1
+setuptools=68.2.2=pyhd8ed1ab_0
+six=1.16.0=pypi_0
+tk=8.6.13=h194ca79_0
+tzdata=2023c=h71feb2d_0
+wheel=0.41.3=pyhd8ed1ab_0
+xz=5.2.6=h9cdd2b7_0

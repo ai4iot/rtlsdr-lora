@@ -1,5 +1,6 @@
 import signal
 import sys
+import os
 import asyncio
 from rtlsdr import RtlSdr
 import numpy as np
@@ -13,29 +14,31 @@ from collections import deque
 
 # Configure device
 sdr = None
-sample_rate = 0.25e6
-NFFT = 256
-collected_samples = 15 * 1024
+sample_rate = os.getenv("SAMPLE_RATE")
+center_freq = float(os.getenv("CENTER_FREQ"))
+gain = int(os.getenv("GAIN"))
+NFFT = int(os.getenv("NFFT"))
+collected_samples = int(os.getenv("COLLECTED_SAMPLES"))
 pxx = []
 power_result = 0
 ### MQTT config ###
-broker = '192.168.77.106'
-port = 1883
-topic = "mqtt/edu"
+broker = str(os.getenv("BROKER"))
+port = int(os.getenv("PORT"))s
+topic = str(os.getenv("TOPIC"))
 # generate client ID with pub prefix randomly
-client_id = f'python-mqtt-{random.randint(0, 1000)}'
-# username = 'emqx'
-# password = 'public'
+client_id = str(os.getenv("CLIENT_ID"))
+#username = str(os.getenv("USERNAME"))
+#password = str(os.getenv("PASSWORD"))
 client = connect_mqtt(client_id=client_id, broker=broker, port=port)
 client.loop_start()
 ### UDP Config ###
-udp_host = "192.168.79.119"  # Change this to your destination IP
-udp_port = 12345  # Change this to your desired port
+udp_host = str(os.getenv("UDP_HOST"))  
+udp_port = int(os.getenv("UDP_PORT")) 
 udp_buffer = []
-power_buffer = deque([0] * 100)
-threshold_count = 50
-extra_threshold = 2
-max_pwr = 0
+len_power_buffer = int(os.getenv("LEN_POWER_BUFFER"))
+power_buffer = deque([0] * len_power_buffer)
+threshold_count = int(os.getenv("THRESHOLD_COUNT"))
+extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
 
 def handle_sigint(signum, frame):
     global sdr
@@ -46,8 +49,8 @@ def handle_sigint(signum, frame):
 def sdrConfig(sdr):
     global f
     sdr.sample_rate = sample_rate
-    sdr.center_freq = 8686
-    sdr.gain = 4
+    sdr.center_freq = center_freq
+    sdr.gain = gain
     f = deque((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
     f.rotate(128)
 async def initial_measurement():
@@ -93,7 +96,7 @@ async def streaming_task(mqtt_thread_instance, udp_thread_instance):
                 buffer = []
                 samples_collected = 0
                 power_buffer.append(1 if pwr > pwr_threshold else 0)
-                if len(power_buffer) > 100:
+                if len(power_buffer) > len_power_buffer:
                     power_buffer.popleft()
     finally:
         sys.exit(0)
