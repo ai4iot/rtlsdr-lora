@@ -11,34 +11,36 @@ import threading
 import pickle
 import socket
 from collections import deque
+from dotenv import load_dotenv 
 
+load_dotenv()
 # Configure device
 sdr = None
-sample_rate = os.getenv("SAMPLE_RATE")
-center_freq = float(os.getenv("CENTER_FREQ"))
-gain = int(os.getenv("GAIN"))
-NFFT = int(os.getenv("NFFT"))
-collected_samples = int(os.getenv("COLLECTED_SAMPLES"))
+sample_rate = float(os.getenv("SAMPLE_RATE")) # type: ignore
+center_freq = float(os.getenv("CENTER_FREQ")) # type: ignore
+gain = int(os.getenv("GAIN")) # type: ignore
+NFFT = int(os.getenv("NFFT")) # type: ignore
+collected_samples = int(os.getenv("COLLECTED_SAMPLES")) # type: ignore
 pxx = []
 power_result = 0
 ### MQTT config ###
 broker = str(os.getenv("BROKER"))
-port = int(os.getenv("PORT"))s
+port = int(os.getenv("PORT")) # type: ignore
 topic = str(os.getenv("TOPIC"))
 # generate client ID with pub prefix randomly
 client_id = str(os.getenv("CLIENT_ID"))
-#username = str(os.getenv("USERNAME"))
-#password = str(os.getenv("PASSWORD"))
+#username = str(os.getenv("USERNAME")) # type: ignore
+#password = str(os.getenv("PASSWORD")) # type: ignore
 client = connect_mqtt(client_id=client_id, broker=broker, port=port)
 client.loop_start()
 ### UDP Config ###
 udp_host = str(os.getenv("UDP_HOST"))  
-udp_port = int(os.getenv("UDP_PORT")) 
+udp_port = int(os.getenv("UDP_PORT"))  # type: ignore
 udp_buffer = []
-len_power_buffer = int(os.getenv("LEN_POWER_BUFFER"))
+len_power_buffer = int(os.getenv("LEN_POWER_BUFFER")) # type: ignore
 power_buffer = deque([0] * len_power_buffer)
-threshold_count = int(os.getenv("THRESHOLD_COUNT"))
-extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
+threshold_count = int(os.getenv("THRESHOLD_COUNT")) # type: ignore
+extra_threshold = float(os.getenv("EXTRA_THRESHOLD")) # type: ignore
 
 def handle_sigint(signum, frame):
     global sdr
