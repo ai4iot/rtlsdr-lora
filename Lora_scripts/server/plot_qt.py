@@ -9,12 +9,10 @@ import threading  # Import the threading module
 # Define the UDP server settings
 UDP_IP = "192.168.79.119"  # Change this to the IP where you're receiving UDP data
 UDP_PORT = 12345
-
 th = 0
 
 class DataReceiver(QObject):
     data_received = pyqtSignal(bytes)
-
     def __init__(self):
         super(DataReceiver, self).__init__()
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -22,7 +20,7 @@ class DataReceiver(QObject):
 
     def start_listening(self):
         while True:
-            data, addr = self.udp_socket.recvfrom(9857)
+            data, addr = self.udp_socket.recvfrom(9891)
             self.data_received.emit(data)
 
 class PlotWidget(QWidget):
