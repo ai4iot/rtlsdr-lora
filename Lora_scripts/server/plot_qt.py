@@ -9,7 +9,6 @@ import threading  # Import the threading module
 # Define the UDP server settings
 UDP_IP = "192.168.79.119"  # Change this to the IP where you're receiving UDP data
 UDP_PORT = 12345
-th = 0
 
 class DataReceiver(QObject):
     data_received = pyqtSignal(bytes)
@@ -20,7 +19,7 @@ class DataReceiver(QObject):
 
     def start_listening(self):
         while True:
-            data, addr = self.udp_socket.recvfrom(9891)
+            data, addr = self.udp_socket.recvfrom(2402)
             self.data_received.emit(data)
 
 class PlotWidget(QWidget):
@@ -54,10 +53,11 @@ class PlotWidget(QWidget):
         self.pxx = new_data["pxx"]
         self.f = new_data["frequencies"]
         pwr = new_data["power_result"]
+        over_th = new_data["isOverThreshold"]
         self.plot_widget.clear()
         self.plot_widget.plot(self.f, self.pxx, pen=self.pen)  # Set the line color to blue
-        self.label_value.setText(f"Power: {pwr:.3f}")
-        self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if pwr > th else 'red'}")
+        self.label_value.setText(f"Power: {pwr:.10f}")
+        self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if over_th else 'red'}")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
