@@ -32,7 +32,7 @@ Los parámetros de ejecución se encuentran en el archivo `.env` dentro de la ca
 3. Configurar los parámetros de la ejecución (.env) dentro de la carpeta `Lora_scripts/client/`
 4. Ejecutar el archivo `Lora_scripts/client/run.py` para el cliente y `Lora_scripts/server/plot_qt.py` para el servidor.
 
-## Uso
+## Esquema
 
 
 

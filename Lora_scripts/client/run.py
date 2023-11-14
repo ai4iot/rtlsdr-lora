@@ -20,7 +20,7 @@ sample_rate = float(os.getenv("SAMPLE_RATE")) # type: ignore
 center_freq = float(os.getenv("CENTER_FREQ")) # type: ignore
 gain = int(os.getenv("GAIN")) # type: ignore
 NFFT = int(os.getenv("NFFT")) # type: ignore
-collected_samples = int(os.getenv("COLLECTED_SAMPLES")) # type: ignore
+collected_samples = float(os.getenv("COLLECTED_SAMPLES")) # type: ignore
 initial_repeats = int(os.getenv("INITIAL_REPEAT")) # type: ignore
 pxx = []
 power_result = 0
@@ -42,6 +42,7 @@ len_power_buffer = int(os.getenv("LEN_POWER_BUFFER")) # type: ignore
 power_buffer = deque([0] * len_power_buffer)
 threshold_count = int(os.getenv("THRESHOLD_COUNT")) # type: ignore
 extra_threshold = float(os.getenv("EXTRA_THRESHOLD")) # type: ignore
+pwr_threshold = 0
 
 def handle_sigint(signum, frame):
     global sdr
@@ -54,8 +55,10 @@ def sdrConfig(sdr):
     sdr.sample_rate = sample_rate
     sdr.center_freq = center_freq
     sdr.gain = gain
-    f = deque((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
+    f = np.float32((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
+    f = deque(f)
     f.rotate(128)
+    f = np.float32(f)
 async def initial_measurement():
     sdr_initial = RtlSdr()
     sdrConfig(sdr_initial)
@@ -78,7 +81,7 @@ async def initial_measurement():
     sdr_initial.close()
     return power_threshold/index
 async def streaming_task(mqtt_thread_instance, udp_thread_instance):
-    global sdr
+    global sdr, pwr_threshold
     samples_collected = 0
     pwr_threshold = await initial_measurement()
     # Start both threads after the initial measurement
@@ -117,9 +120,10 @@ async def process_samples(samples,sdr):
 
 def process_udp(pxx, power_result):
     data = {
-        "frequencies": list(f),
-        "pxx": list(pxx),
-        "power_result": power_result
+        "frequencies": f,
+        "pxx": np.float32(pxx),
+        "power_result": power_result,
+        "isOverThreshold": power_result > pwr_threshold,
     }
     data_bytes = pickle.dumps(data)
     udp_buffer.append(data_bytes)
