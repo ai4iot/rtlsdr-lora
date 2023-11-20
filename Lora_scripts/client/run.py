@@ -1,3 +1,4 @@
+# type: ignore
 import signal
 import sys
 import os
@@ -13,35 +14,36 @@ import socket
 from collections import deque
 from dotenv import load_dotenv 
 
+
 load_dotenv()
 # Configure device
 sdr = None
-sample_rate = float(os.getenv("SAMPLE_RATE")) # type: ignore
-center_freq = float(os.getenv("CENTER_FREQ")) # type: ignore
-gain = int(os.getenv("GAIN")) # type: ignore
-NFFT = int(os.getenv("NFFT")) # type: ignore
-collected_samples = float(os.getenv("COLLECTED_SAMPLES")) # type: ignore
-initial_repeats = int(os.getenv("INITIAL_REPEAT")) # type: ignore
+sample_rate = float(os.getenv("SAMPLE_RATE")) 
+center_freq = float(os.getenv("CENTER_FREQ")) 
+gain = int(os.getenv("GAIN")) 
+NFFT = int(os.getenv("NFFT")) 
+collected_samples = float(os.getenv("COLLECTED_SAMPLES")) 
+initial_repeats = int(os.getenv("INITIAL_REPEAT")) 
 pxx = []
 power_result = 0
 ### MQTT config ###
 broker = str(os.getenv("BROKER"))
-port = int(os.getenv("PORT")) # type: ignore
+port = int(os.getenv("PORT")) 
 topic = str(os.getenv("TOPIC"))
 # generate client ID with pub prefix randomly
 client_id = str(os.getenv("CLIENT_ID"))
-#username = str(os.getenv("USERNAME")) # type: ignore
-#password = str(os.getenv("PASSWORD")) # type: ignore
+#username = str(os.getenv("USERNAME")) 
+#password = str(os.getenv("PASSWORD")) 
 client = connect_mqtt(client_id=client_id, broker=broker, port=port)
 client.loop_start()
 ### UDP Config ###
 udp_host = str(os.getenv("UDP_HOST"))  
-udp_port = int(os.getenv("UDP_PORT"))  # type: ignore
+udp_port = int(os.getenv("UDP_PORT"))  
 udp_buffer = []
-len_power_buffer = int(os.getenv("LEN_POWER_BUFFER")) # type: ignore
+len_power_buffer = int(os.getenv("LEN_POWER_BUFFER")) 
 power_buffer = deque([0] * len_power_buffer)
-threshold_count = int(os.getenv("THRESHOLD_COUNT")) # type: ignore
-extra_threshold = float(os.getenv("EXTRA_THRESHOLD")) # type: ignore
+threshold_count = int(os.getenv("THRESHOLD_COUNT")) 
+extra_threshold = float(os.getenv("EXTRA_THRESHOLD")) 
 pwr_threshold = 0
 
 def handle_sigint(signum, frame):
@@ -56,16 +58,16 @@ def sdrConfig(sdr):
     sdr.center_freq = center_freq
     sdr.gain = gain
     f = np.float32((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6)+sdr.center_freq / 1e6)
-    f = deque(f)
+    f = deque(f) 
     f.rotate(128)
-    f = np.float32(f)
+    f = np.float32(f) 
 async def initial_measurement():
     sdr_initial = RtlSdr()
     sdrConfig(sdr_initial)
     initial_collected_samples = collected_samples*10
     index =0
     power_threshold=0
-    async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples):
+    async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples): 
         # Calculate the power threshold based on the initial measurement
         _, initial_pxx = welch(x=samples, fs=sdr_initial.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
         pxx = deque(initial_pxx)
@@ -93,7 +95,7 @@ async def streaming_task(mqtt_thread_instance, udp_thread_instance):
     # Registrar la función de manejo de la señal SIGINT
     signal.signal(signal.SIGINT, handle_sigint)
     try:
-        async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
+        async for samples in sdr.stream(num_samples_or_bytes=collected_samples): 
             samples_collected += len(samples)
             if samples_collected >= collected_samples:
                 pwr = await process_samples(samples, sdr)
