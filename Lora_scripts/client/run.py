@@ -35,7 +35,8 @@ client_id = str(os.getenv("CLIENT_ID"))
 #username = str(os.getenv("USERNAME")) 
 #password = str(os.getenv("PASSWORD")) 
 client = connect_mqtt(client_id=client_id, broker=broker, port=port)
-client.loop_start()
+if client:
+    client.loop_start()
 ### UDP Config ###
 udp_host = str(os.getenv("UDP_HOST"))  
 udp_port = int(os.getenv("UDP_PORT"))  
