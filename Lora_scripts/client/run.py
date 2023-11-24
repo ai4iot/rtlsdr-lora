@@ -40,9 +40,9 @@ client.loop_start()
 udp_host = str(os.getenv("UDP_HOST"))  
 udp_port = int(os.getenv("UDP_PORT"))  
 udp_buffer = []
-len_power_buffer = int(os.getenv("LEN_POWER_BUFFER")) 
-power_buffer = deque([0] * len_power_buffer)
-threshold_count = int(os.getenv("THRESHOLD_COUNT")) 
+len_pwr_buffer = int(os.getenv("LEN_POWER_BUFFER")) 
+pwr_buffer = deque([0] * len_pwr_buffer)
+thresh_count = int(os.getenv("THRESHOLD_COUNT")) 
 extra_threshold = float(os.getenv("EXTRA_THRESHOLD")) 
 pwr_threshold = 0
 
@@ -82,7 +82,7 @@ async def initial_measurement():
     sdr_initial.cancel_read_async()
     sdr_initial.close()
     return power_threshold/index
-async def streaming_task(mqtt_thread_instance, udp_thread_instance):
+async def processing_task(mqtt_thread_instance, udp_thread_instance):
     global sdr, pwr_threshold
     samples_collected = 0
     pwr_threshold = await initial_measurement()
@@ -100,9 +100,9 @@ async def streaming_task(mqtt_thread_instance, udp_thread_instance):
             if samples_collected >= collected_samples:
                 pwr = await process_samples(samples, sdr)
                 samples_collected = 0
-                power_buffer.append(1 if pwr > pwr_threshold else 0)
-                if len(power_buffer) > len_power_buffer:
-                    power_buffer.popleft()
+                pwr_buffer.append(1 if pwr > pwr_threshold else 0)
+                if len(pwr_buffer) > len_pwr_buffer:
+                    pwr_buffer.popleft()
     finally:
         sys.exit(0)
 
@@ -131,20 +131,19 @@ def process_udp(pxx, power_result):
     udp_buffer.append(data_bytes)
 def mqtt_thread():
     while True:
-        print(sum(power_buffer))
-        if sum(power_buffer) >= threshold_count:
+        print(sum(pwr_buffer))
+        if sum(pwr_buffer) >= thresh_count:
             publish_mqtt()
         time.sleep(1)
 def publish_mqtt(msg="Detected LoRa message"):
-    while True:
-        time.sleep(0.2)
-        result = client.publish(topic, msg)
-        # result: [0, 1]
-        status = result[0]
-        if status == 0:
-            print(f"Message `{msg}` sent to topic `{topic}`")
-        else:
-            print(f"Failed to send message to topic {topic}")
+    time.sleep(0.2)
+    result = client.publish(topic, msg)
+    # result: [0, 1]
+    status = result[0]
+    if status == 0:
+        print(f"Message `{msg}` sent to topic `{topic}`")
+    else:
+        print(f"Failed to send message to topic {topic}")
 def udp_thread():
     global udp_buffer
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -158,7 +157,7 @@ async def main():
     mqtt_thread_instance = threading.Thread(target=mqtt_thread)
     mqtt_thread_instance.daemon = True
     udp_thread_instance.daemon = True
-    streaming_task_instance = asyncio.create_task(streaming_task(mqtt_thread_instance,udp_thread_instance))    
+    streaming_task_instance = asyncio.create_task(processing_task(mqtt_thread_instance,udp_thread_instance))    
     await streaming_task_instance    
 
 if __name__ == "__main__":

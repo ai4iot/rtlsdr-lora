@@ -14,8 +14,12 @@ def connect_mqtt(client_id, broker, port):
     client = mqtt_client.Client(client_id)
     #client.username_pw_set(username, password)
     client.on_connect = on_connect
-    client.connect(broker, port)
-    return client
+    try:
+        client.connect(broker, port)
+        return client
+    except Exception as e:
+        print(e)
+        return False
 
 
 
