@@ -3,3 +3,4 @@ python_sdr/Lora_scripts/client/.env
 .vscode/
 Docs/
 figures/
+.idea/
