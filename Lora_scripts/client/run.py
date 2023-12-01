@@ -75,7 +75,6 @@ async def initial_measurement():
         pxx = deque(initial_pxx)
         pxx.rotate(128)
         initial_power = np.trapz(pxx, f)  # Integrate in linear scale
-        
         pxx = 10 * np.log10(pxx)
         power_threshold += initial_power
         print(f"Initial power: {initial_power:.10f}")
@@ -101,9 +100,7 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
         async for samples in sdr.stream(num_samples_or_bytes=collected_samples*10): 
             samples_collected += len(samples)
             if samples_collected >= collected_samples:
-                pwr, pxx = await process_samples(samples, sdr)    
-                if pwr > 0.0000666125:
-                    print("LoRa message detected")                
+                pwr, pxx = await process_samples(samples, sdr)               
                 samples_collected = 0
                 pwr_buffer.append(1 if pwr > pwr_threshold else 0)
                 if len(pwr_buffer) > len_pwr_buffer:
