@@ -13,6 +13,7 @@ import pickle
 import socket
 from collections import deque
 from dotenv import load_dotenv 
+from matplotlib import pyplot as plt
 
 
 load_dotenv()
@@ -74,6 +75,7 @@ async def initial_measurement():
         pxx = deque(initial_pxx)
         pxx.rotate(128)
         initial_power = np.trapz(pxx, f)  # Integrate in linear scale
+        
         pxx = 10 * np.log10(pxx)
         power_threshold += initial_power
         print(f"Initial power: {initial_power:.10f}")
@@ -96,10 +98,12 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
     # Registrar la función de manejo de la señal SIGINT
     signal.signal(signal.SIGINT, handle_sigint)
     try:
-        async for samples in sdr.stream(num_samples_or_bytes=collected_samples): 
+        async for samples in sdr.stream(num_samples_or_bytes=collected_samples*10): 
             samples_collected += len(samples)
             if samples_collected >= collected_samples:
-                pwr = await process_samples(samples, sdr)
+                pwr, pxx = await process_samples(samples, sdr)    
+                if pwr > 0.0000666125:
+                    print("LoRa message detected")                
                 samples_collected = 0
                 pwr_buffer.append(1 if pwr > pwr_threshold else 0)
                 if len(pwr_buffer) > len_pwr_buffer:
@@ -119,7 +123,7 @@ async def process_samples(samples,sdr):
     elapsed_time = end_time - start_time
     print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
     process_udp(pxx, power_result)
-    return power_result
+    return power_result, pxx
 
 def process_udp(pxx, power_result):
     data = {
