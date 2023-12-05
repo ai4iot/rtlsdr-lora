@@ -93,6 +93,7 @@ async def initial_measurement():
     sdrConfig(sdr_initial)
     initial_collected_samples = collected_samples *10
     index = 0
+    
     power_threshold = 0
     async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples):
         # Calculate the power threshold based on the initial measurement
