@@ -15,9 +15,10 @@ from collections import deque
 from dotenv import load_dotenv
 from matplotlib import pyplot as plt
 
-load_dotenv(dotenv_path="/home/edub/rtlsdr-lora/Lora_scripts/client/.env_mod")
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env_mod"))
 # Configure device
 sdr = None
+
 sample_rate = float(os.getenv("SAMPLE_RATE"))
 center_freq = float(os.getenv("CENTER_FREQ"))
 gain = int(os.getenv("GAIN"))
@@ -31,6 +32,7 @@ collected_time_iteration = t_sample*collected_samples
 buffer_time_ms = int(os.getenv("BUFFER_TIME_MS"))
 buffer_len = int((buffer_time_ms/1000)//collected_time_iteration)
 pwr_buffer = deque([0] * buffer_len, maxlen=buffer_len)
+buffer_index = 0
 extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
 pwr_threshold = 0
 auto_thresh = bool(os.getenv("AUTOTHRESH"))
@@ -114,15 +116,15 @@ async def initial_measurement():
 
 
 async def processing_task(mqtt_thread_instance, udp_thread_instance):
-    global sdr, pwr_threshold
+    global sdr, pwr_threshold, buffer_index
     if auto_thresh:
         pwr_threshold = await initial_measurement()
     else:
         pwr_threshold = float(os.getenv("POWER_THRESHOLD"))
     # Empezamos ambos hilos de forma paralela
-    mqtt_thread_instance.start()
+    if client:
+        mqtt_thread_instance.start()
     udp_thread_instance.start()
-    pwr_threshold *= (1 + extra_threshold)
     sdr = RtlSdr()
     sdrConfig(sdr)
     # Registrar la función de manejo de la señal SIGINT
@@ -131,6 +133,7 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
         async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
             pwr, pxx = await process_samples(samples, sdr.center_freq)
             pwr_buffer.appendleft(pwr)
+            buffer_index += 1
     finally:
         sys.exit(0)
 
@@ -162,14 +165,15 @@ def process_udp(pxx, power_result):
 
 
 def mqtt_thread():
+    global buffer_index
     while True:
-        print(sum(pwr_buffer))
-        if sum(pwr_buffer) >= pwr_threshold*(1+extra_threshold):
-            publish_mqtt()
-        time.sleep(1)
+        if buffer_index == pwr_buffer.maxlen:
+            msg = f"Power: {sum(pwr_buffer):.6f}"+ "Detected intrusion" if sum(pwr_buffer) > pwr_threshold else "No intrusion detected"
+            publish_mqtt(msg)
+            buffer_index = 0
 
 
-def publish_mqtt(msg="Detected LoRa message"):
+def publish_mqtt(msg):
     time.sleep(0.2)
     result = client.publish(topic, msg)
     # result: [0, 1]

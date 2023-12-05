@@ -123,8 +123,8 @@ async def process_samples(samples, sdr):
     pxx.rotate(128)
     power_result = np.trapz(pxx, f)  # Integrate in linear scale
     pxx = 10 * np.log10(pxx)
-    plt.plot(pxx,f)
-    plt.show()
+    #plt.plot(pxx,f)
+    #plt.show()
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
