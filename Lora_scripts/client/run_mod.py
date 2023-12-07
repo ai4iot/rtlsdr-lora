@@ -31,7 +31,7 @@ collected_samples = int(os.getenv("COLLECTED_SAMPLES"))
 collected_time_iteration = t_sample*collected_samples
 buffer_time_ms = int(os.getenv("BUFFER_TIME_MS"))
 buffer_len = int((buffer_time_ms/1000)//collected_time_iteration)
-pwr_buffer = deque([0] * buffer_len, maxlen=buffer_len)
+pwr_buffer = deque([(0,0)] * buffer_len, maxlen=buffer_len)
 buffer_index = 0
 extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
 pwr_threshold = 0
@@ -54,6 +54,8 @@ if client:
 udp_host = str(os.getenv("UDP_HOST"))
 udp_port = int(os.getenv("UDP_PORT"))
 udp_buffer = []
+buffer_lock = threading.Lock()
+
 
 
 ## Display program configuration and info ##
@@ -121,6 +123,7 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
         pwr_threshold = await initial_measurement()
     else:
         pwr_threshold = float(os.getenv("POWER_THRESHOLD"))
+    pwr_threshold *= (1 + extra_threshold)
     # Empezamos ambos hilos de forma paralela
     if client:
         mqtt_thread_instance.start()
@@ -132,8 +135,10 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
     try:
         async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
             pwr, pxx = await process_samples(samples, sdr.center_freq)
-            pwr_buffer.appendleft(pwr)
-            buffer_index += 1
+            pwr_buffer.appendleft([pwr, buffer_index])
+            buffer_index += 1 
+            if buffer_index > buffer_len:
+                buffer_index = 0
     finally:
         sys.exit(0)
 
@@ -167,15 +172,21 @@ def process_udp(pxx, power_result):
 def mqtt_thread():
     global buffer_index
     while True:
-        if buffer_index == pwr_buffer.maxlen:
-            msg = f"Power: {sum(pwr_buffer):.6f}"+ "Detected intrusion" if sum(pwr_buffer) > pwr_threshold else "No intrusion detected"
+        buffer = pwr_buffer.copy()
+        if buffer[0][1] == buffer.maxlen:
+            sum_pwr = sum([x[0] for x in buffer])
+            msg = f"Power: {sum_pwr:.6f} Detected intrusion" if sum_pwr > pwr_threshold else "No intrusion detected"
             publish_mqtt(msg)
-            buffer_index = 0
+            
+            
 
 
 def publish_mqtt(msg):
     time.sleep(0.2)
-    result = client.publish(topic, msg)
+    try:
+        result = client.publish(topic, msg)
+    except Exception as e:
+        print(e)
     # result: [0, 1]
     status = result[0]
     if status == 0:

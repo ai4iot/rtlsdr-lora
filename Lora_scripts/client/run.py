@@ -43,7 +43,7 @@ udp_host = str(os.getenv("UDP_HOST"))
 udp_port = int(os.getenv("UDP_PORT"))
 udp_buffer = []
 len_pwr_buffer = int(os.getenv("LEN_POWER_BUFFER"))
-pwr_buffer = deque([0] * len_pwr_buffer)
+pwr_buffer = deque([0] * len_pwr_buffer, maxlen=len_pwr_buffer)
 thresh_count = int(os.getenv("THRESHOLD_COUNT"))
 extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
 pwr_threshold = 0
@@ -106,11 +106,9 @@ async def processing_task(udp_thread_instance):
     # Registrar la función de manejo de la señal SIGINT
     signal.signal(signal.SIGINT, handle_sigint)
     try:
-        async for samples in sdr.stream(num_samples_or_bytes=sample_rate):
+        async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
             pwr, pxx = await process_samples(samples, sdr)
             pwr_buffer.append(1 if pwr > pwr_threshold else 0)
-            if len(pwr_buffer) > len_pwr_buffer:
-                pwr_buffer.popleft()
     finally:
         sys.exit(0)
 
