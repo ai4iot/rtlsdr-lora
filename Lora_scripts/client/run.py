@@ -106,7 +106,7 @@ async def processing_task(udp_thread_instance):
     # Registrar la función de manejo de la señal SIGINT
     signal.signal(signal.SIGINT, handle_sigint)
     try:
-        async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
+        async for samples in sdr.stream(num_samples_or_bytes=sample_rate):
             pwr, pxx = await process_samples(samples, sdr)
             pwr_buffer.append(1 if pwr > pwr_threshold else 0)
     finally:
