@@ -123,7 +123,8 @@ async def processing_task(mqtt_thread_instance, udp_thread_instance):
         pwr_threshold = await initial_measurement()
     else:
         pwr_threshold = float(os.getenv("POWER_THRESHOLD"))
-    pwr_threshold *= (1 + extra_threshold)
+    if auto_thresh:
+        pwr_threshold *= (1 + extra_threshold)
     # Empezamos ambos hilos de forma paralela
     if client:
         mqtt_thread_instance.start()
