@@ -50,6 +50,7 @@ client_id = str(os.getenv("CLIENT_ID"))
 client = connect_mqtt(client_id=client_id, broker=broker, port=port)
 if client:
     client.loop_start()
+client = True
 ### UDP Config ###
 udp_host = str(os.getenv("UDP_HOST"))
 udp_port = int(os.getenv("UDP_PORT"))
@@ -117,7 +118,7 @@ async def initial_measurement():
     return power_threshold
 
 
-async def processing_task(mqtt_thread_instance, udp_thread_instance):
+async def processing_task(udp_thread_instance,mqtt_thread_instance):
     global sdr, pwr_threshold, buffer_index
     if auto_thresh:
         pwr_threshold = await initial_measurement()
@@ -154,7 +155,7 @@ async def process_samples(samples, sdr_freq):
     pxx = 10 * np.log10(pxx)
     end_time = time.time()
     elapsed_time = end_time - start_time
-    print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
+    #print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
     process_udp(pxx, power_result)
     return power_result, pxx
 
@@ -178,6 +179,7 @@ def mqtt_thread():
             sum_pwr = sum([x[0] for x in buffer])
             msg = f"Power: {sum_pwr:.6f} Detected intrusion" if sum_pwr > pwr_threshold else "No intrusion detected"
             publish_mqtt(msg)
+            print(msg)
             
             
 
@@ -210,7 +212,7 @@ async def main():
     mqtt_thread_instance = threading.Thread(target=mqtt_thread)
     mqtt_thread_instance.daemon = True
     udp_thread_instance.daemon = True
-    streaming_task_instance = asyncio.create_task(processing_task(mqtt_thread_instance, udp_thread_instance))
+    streaming_task_instance = asyncio.create_task(processing_task(udp_thread_instance,mqtt_thread_instance))
     await streaming_task_instance
 
 
