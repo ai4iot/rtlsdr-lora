@@ -15,30 +15,18 @@ from collections import deque
 from dotenv import load_dotenv
 from matplotlib import pyplot as plt
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env_mod"))
+load_dotenv()
 # Configure device
 sdr = None
-
 sample_rate = float(os.getenv("SAMPLE_RATE"))
 center_freq = float(os.getenv("CENTER_FREQ"))
 gain = int(os.getenv("GAIN"))
-nfft = int(os.getenv("NFFT"))
-rotation = int(nfft/2)
-
-# Program parameters
-t_sample = 1 / sample_rate
-collected_samples = int(os.getenv("COLLECTED_SAMPLES"))
-collected_time_iteration = t_sample*collected_samples
-buffer_time_ms = int(os.getenv("BUFFER_TIME_MS"))
-buffer_len = int((buffer_time_ms/1000)//collected_time_iteration)
-pwr_buffer = deque([(0,0)] * buffer_len, maxlen=buffer_len)
-buffer_index = 0
-extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
-pwr_threshold = 0
+NFFT = int(os.getenv("NFFT"))
+collected_samples = float(os.getenv("COLLECTED_SAMPLES"))
+initial_repeats = int(os.getenv("INITIAL_REPEAT"))
 auto_thresh = bool(os.getenv("AUTOTHRESH"))
 pxx = []
 power_result = 0
-
 ### MQTT config ###
 broker = str(os.getenv("BROKER"))
 port = int(os.getenv("PORT"))
@@ -54,24 +42,12 @@ if client:
 udp_host = str(os.getenv("UDP_HOST"))
 udp_port = int(os.getenv("UDP_PORT"))
 udp_buffer = []
-buffer_lock = threading.Lock()
+len_pwr_buffer = int(os.getenv("LEN_POWER_BUFFER"))
+pwr_buffer = deque([0] * len_pwr_buffer, maxlen=len_pwr_buffer)
+thresh_count = int(os.getenv("THRESHOLD_COUNT"))
+extra_threshold = float(os.getenv("EXTRA_THRESHOLD"))
+pwr_threshold = 0
 
-
-
-## Display program configuration and info ##
-display_freq = lambda sample_rate: (f"{sample_rate} Hz" if sample_rate < 1e3 else
-                                            f"{sample_rate / 1e3} kHz" if sample_rate < 1e6 else
-                                            f"{sample_rate / 1e6} MHz")
-text_time = lambda collected_time_s: (f"{collected_time_s} s" if collected_time_s >= 1 else
-                                         f"{collected_time_s * 1e3} ms" if collected_time_s >= 1e-3 else
-                                         f"{collected_time_s * 1e6} µs")
-print("Single sample time set to: "+text_time(t_sample))
-print("Sample rate set to: "+display_freq(sample_rate))
-print("Central frequency set to: "+display_freq(center_freq))
-
-print("Sample collection time set to: "+text_time(collected_time_iteration))
-
-############################################
 
 def handle_sigint(signum, frame):
     global sdr
@@ -86,72 +62,66 @@ def sdrConfig(sdr):
     sdr.sample_rate = sample_rate
     sdr.center_freq = center_freq
     sdr.gain = gain
-    f = np.float32((np.fft.fftfreq(nfft, 1 / sample_rate) / 1e6) + sdr.center_freq / 1e6)
+    f = np.float32((np.fft.fftfreq(NFFT, 1 / sample_rate) / 1e6) + sdr.center_freq / 1e6)
     f = deque(f)
-    f.rotate(rotation)
+    f.rotate(128)
     f = np.float32(f)
-
 
 async def initial_measurement():
     sdr_initial = RtlSdr()
     sdrConfig(sdr_initial)
-    initial_collected_samples = collected_samples *10
+    initial_collected_samples = collected_samples * 10
     index = 0
-    
     power_threshold = 0
     async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples):
         # Calculate the power threshold based on the initial measurement
-        _, initial_pxx = welch(x=samples, fs=sdr_initial.center_freq, nperseg=nfft, scaling='spectrum',
+        _, initial_pxx = welch(x=samples, fs=sdr_initial.center_freq, nperseg=NFFT, scaling='spectrum',
                                return_onesided=False)
         pxx = deque(initial_pxx)
-        pxx.rotate(rotation)
+        pxx.rotate(128)
         initial_power = np.trapz(pxx, f)  # Integrate in linear scale
         power_threshold += initial_power
         print(f"Initial power: {initial_power:.10f}")
         index += 1
-        if index > buffer_len:
+        if index > initial_repeats:
             break
     sdr_initial.cancel_read_async()
     sdr_initial.close()
-    print("Initial power threshold: ", power_threshold)
-    return power_threshold
+    return power_threshold / index
 
 
-async def processing_task(mqtt_thread_instance, udp_thread_instance):
-    global sdr, pwr_threshold, buffer_index
+async def processing_task(udp_thread_instance):
+    global sdr, pwr_threshold
     if auto_thresh:
         pwr_threshold = await initial_measurement()
     else:
         pwr_threshold = float(os.getenv("POWER_THRESHOLD"))
-    if auto_thresh:
-        pwr_threshold *= (1 + extra_threshold)
-    # Empezamos ambos hilos de forma paralela
-    if client:
-        mqtt_thread_instance.start()
+    # Start both threads after the initial measurement
+    #mqtt_thread_instance.start()
     udp_thread_instance.start()
+    pwr_threshold *= (1 + extra_threshold)
     sdr = RtlSdr()
     sdrConfig(sdr)
     # Registrar la función de manejo de la señal SIGINT
     signal.signal(signal.SIGINT, handle_sigint)
     try:
-        async for samples in sdr.stream(num_samples_or_bytes=collected_samples):
-            pwr, pxx = await process_samples(samples, sdr.center_freq)
-            pwr_buffer.appendleft([pwr, buffer_index])
-            buffer_index += 1 
-            if buffer_index > buffer_len:
-                buffer_index = 0
+        async for samples in sdr.stream(num_samples_or_bytes=sample_rate):
+            pwr, pxx = await process_samples(samples, sdr)
+            pwr_buffer.append(1 if pwr > pwr_threshold else 0)
     finally:
         sys.exit(0)
 
 
-async def process_samples(samples, sdr_freq):
+async def process_samples(samples, sdr):
     global udp_buffer
     start_time = time.time()
-    _, pxx = welch(x=samples, fs=sdr_freq, nperseg=nfft, scaling='spectrum', return_onesided=False)
+    _, pxx = welch(x=samples, fs=sdr.center_freq, nperseg=NFFT, scaling='spectrum', return_onesided=False)
     pxx = deque(pxx)
-    pxx.rotate(rotation)
+    pxx.rotate(128)
     power_result = np.trapz(pxx, f)  # Integrate in linear scale
     pxx = 10 * np.log10(pxx)
+    #plt.plot(pxx,f)
+    #plt.show()
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
@@ -164,30 +134,23 @@ def process_udp(pxx, power_result):
         "frequencies": f,
         "pxx": np.float32(pxx),
         "power_result": power_result,
-        "isOverThreshold": False#power_result > pwr_threshold,
+        "isOverThreshold": power_result > pwr_threshold,
     }
     data_bytes = pickle.dumps(data)
     udp_buffer.append(data_bytes)
 
 
 def mqtt_thread():
-    global buffer_index
     while True:
-        buffer = pwr_buffer.copy()
-        if buffer[0][1] == buffer.maxlen:
-            sum_pwr = sum([x[0] for x in buffer])
-            msg = f"Power: {sum_pwr:.6f} Detected intrusion" if sum_pwr > pwr_threshold else "No intrusion detected"
-            publish_mqtt(msg)
-            
-            
+        print(sum(pwr_buffer))
+        if sum(pwr_buffer) >= thresh_count:
+            publish_mqtt()
+        time.sleep(1)
 
 
-def publish_mqtt(msg):
+def publish_mqtt(msg="Detected LoRa message"):
     time.sleep(0.2)
-    try:
-        result = client.publish(topic, msg)
-    except Exception as e:
-        print(e)
+    result = client.publish(topic, msg)
     # result: [0, 1]
     status = result[0]
     if status == 0:
@@ -207,10 +170,11 @@ def udp_thread():
 
 async def main():
     udp_thread_instance = threading.Thread(target=udp_thread)
-    mqtt_thread_instance = threading.Thread(target=mqtt_thread)
-    mqtt_thread_instance.daemon = True
+    #mqtt_thread_instance = threading.Thread(target=mqtt_thread)
+    #mqtt_thread_instance.daemon = True
     udp_thread_instance.daemon = True
-    streaming_task_instance = asyncio.create_task(processing_task(mqtt_thread_instance, udp_thread_instance))
+    streaming_task_instance = asyncio.create_task(processing_task(udp_thread_instance))
+    #streaming_task_instance = asyncio.create_task(processing_task(mqtt_thread_instance, udp_thread_instance))
     await streaming_task_instance
 
 
