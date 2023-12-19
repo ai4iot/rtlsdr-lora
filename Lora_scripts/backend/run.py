@@ -67,7 +67,6 @@ def sdrConfig(sdr):
     f.rotate(128)
     f = np.float32(f)
 
-
 async def initial_measurement():
     sdr_initial = RtlSdr()
     sdrConfig(sdr_initial)
@@ -89,7 +88,6 @@ async def initial_measurement():
     sdr_initial.cancel_read_async()
     sdr_initial.close()
     return power_threshold / index
-
 
 async def processing_task(udp_thread_instance):
     global sdr, pwr_threshold
