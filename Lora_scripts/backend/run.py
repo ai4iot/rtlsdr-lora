@@ -89,6 +89,7 @@ async def initial_measurement():
     sdr_initial.close()
     return power_threshold / index
 
+
 async def processing_task(udp_thread_instance):
     global sdr, pwr_threshold
     if auto_thresh:
