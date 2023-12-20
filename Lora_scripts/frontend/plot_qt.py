@@ -10,7 +10,7 @@ from collections import deque
 from numpy import log10
 
 # Define the UDP server settings
-UDP_IP = "192.168.79.119"  # Change this to the IP where you're receiving UDP data
+UDP_IP = "192.168.79.86"  # Change this to the IP where you're receiving UDP data
 UDP_PORT = 12345
 data_rate = 17846
 class DataReceiver(QObject):
@@ -55,13 +55,15 @@ class PlotWidget(QWidget):
         f = new_data["frequencies"]
         energy = new_data["energy_norm"]
         parameters = new_data["parameters"]
-        _, pxx = welch(x=samples, fs=parameters["sdr_freq"], nperseg=parameters["nfft"], scaling='spectrum', return_onesided=False)
+        nfft = parameters["nfft"]
+        rotation = int(nfft/2)
+        _, pxx = welch(x=samples, fs=parameters["sdr_freq"], nperseg=nfft, scaling='spectrum', return_onesided=False)
         pxx = deque(pxx)
         pxx.rotate(rotation) # Integrate in linear scale
         pxx = 10 * log10(pxx)        
-        over_th = True if energy > (new_data["energy_thresh"]*new_data["extra_threshold"]) else False
+        over_th = True if energy > (parameters["energy_thresh"]*parameters["extra_threshold"]) else False
         self.plot_widget.clear()
-        self.plot_widget.plot(self.f, self.pxx, pen=self.pen)  # Set the line color to blue
+        self.plot_widget.plot(f, pxx, pen=self.pen)  # Set the line color to blue
         self.label_value.setText(f"Energy: {energy:.10f}")
         self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if over_th else 'red'}")
 
