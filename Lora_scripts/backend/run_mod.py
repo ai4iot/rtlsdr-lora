@@ -5,7 +5,6 @@ import os
 import asyncio
 from rtlsdr import RtlSdr
 import numpy as np
-from scipy.signal import welch
 from paho_util import *
 import time
 import threading
@@ -100,12 +99,6 @@ async def initial_measurement():
     
     energy_threshold = 0
     async for samples in sdr_initial.stream(num_samples_or_bytes=initial_collected_samples):
-        # Calculate the power threshold based on the initial measurement
-        #_, initial_pxx = welch(x=samples, fs=sdr_initial.center_freq, nperseg=nfft, scaling='spectrum',
-        #                       return_onesided=False)
-        #pxx = deque(initial_pxx)
-        #pxx.rotate(rotation)
-        #initial_power = np.trapz(pxx, f)  # Integrate in linear scale
         init_energy_norm = np.sum(np.square(np.abs(samples)))/len(samples)
         energy_threshold += init_energy_norm
         print(f"Initial energy per sample: {init_energy_norm:.10f}")
@@ -147,15 +140,6 @@ async def processing_task(udp_thread_instance,mqtt_thread_instance):
 
 def process_samples(samples):
     global udp_buffer
-    #start_time = time.time()
-    #_, pxx = welch(x=samples, fs=sdr_freq, nperseg=nfft, scaling='spectrum', return_onesided=False)
-    #pxx = deque(pxx)
-    #pxx.rotate(rotation)
-    #power_result = np.trapz(pxx, f)  # Integrate in linear scale
-    #pxx = 10 * np.log10(pxx)
-    #end_time = time.time()
-    #elapsed_time = end_time - start_time
-    #print(f"Time taken for data collection and processing: {elapsed_time:.5f} seconds, power={power_result:.10f}")
     energy_norm = np.sum(np.square(np.abs(samples)))/len(samples)
     print(energy_norm)
     process_udp(samples, energy_norm)
@@ -170,7 +154,7 @@ def process_udp(samples, energy_norm):
         "parameters": {
             "nfft": nfft,
             "sdr_freq": sdr.center_freq,
-            "energy_thresh_buffer": energy_thresh_buffer,
+            "energy_thresh": energy_thresh_buffer/buffer_len,
             "extra_threshold": extra_threshold,
         }
     }

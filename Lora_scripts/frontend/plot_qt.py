@@ -5,11 +5,14 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLa
 from PyQt5.QtCore import pyqtSignal, QObject
 import pyqtgraph as pg
 import threading  # Import the threading module
+from scipy.signal import welch
+from collections import deque
+from numpy import log10
 
 # Define the UDP server settings
 UDP_IP = "192.168.79.119"  # Change this to the IP where you're receiving UDP data
 UDP_PORT = 12345
-
+data_rate = 17846
 class DataReceiver(QObject):
     data_received = pyqtSignal(bytes)
     def __init__(self):
@@ -19,7 +22,7 @@ class DataReceiver(QObject):
 
     def start_listening(self):
         while True:
-            data, addr = self.udp_socket.recvfrom(2402)
+            data, addr = self.udp_socket.recvfrom(data_rate)
             self.data_received.emit(data)
 
 class PlotWidget(QWidget):
@@ -39,8 +42,6 @@ class PlotWidget(QWidget):
         layout.addWidget(self.label_value)
         data_receiver.data_received.connect(self.update_plot)
 
-        self.f = []
-        self.pxx = []
         self.pen = pg.mkPen('b', width=2)
         self.curve = self.plot_widget.plot(pen=self.pen)
         self.plot_widget.setLabel('left', 'Power (dBm)')
@@ -50,13 +51,18 @@ class PlotWidget(QWidget):
 
     def update_plot(self, data):
         new_data = pickle.loads(data)
-        self.pxx = new_data["pxx"]
-        self.f = new_data["frequencies"]
-        pwr = new_data["power_result"]
-        over_th = new_data["isOverThreshold"]
+        samples = new_data["samples"]
+        f = new_data["frequencies"]
+        energy = new_data["energy_norm"]
+        parameters = new_data["parameters"]
+        _, pxx = welch(x=samples, fs=parameters["sdr_freq"], nperseg=parameters["nfft"], scaling='spectrum', return_onesided=False)
+        pxx = deque(pxx)
+        pxx.rotate(rotation) # Integrate in linear scale
+        pxx = 10 * log10(pxx)        
+        over_th = True if energy > (new_data["energy_thresh"]*new_data["extra_threshold"]) else False
         self.plot_widget.clear()
         self.plot_widget.plot(self.f, self.pxx, pen=self.pen)  # Set the line color to blue
-        self.label_value.setText(f"Power: {pwr:.10f}")
+        self.label_value.setText(f"Energy: {energy:.10f}")
         self.label_value.setStyleSheet(f"font-size: 20pt; color: {'green' if over_th else 'red'}")
 
 if __name__ == '__main__':
